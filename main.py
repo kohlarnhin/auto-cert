@@ -22,10 +22,16 @@ app = FastAPI(title="AutoCert", version="2.0.0")
 # ── 全局状态 ──
 
 is_applying = False
+apply_state = {"domain": "", "step": "init", "message": "准备中..."}
 log_queues: list[asyncio.Queue] = []
 
 
 async def broadcast_log(message: str, level: str = "info", step: str = ""):
+    if step:
+        apply_state["step"] = step
+    if message:
+        apply_state["message"] = message
+        
     event = {
         "message": message,
         "level": level,
@@ -127,10 +133,20 @@ async def apply_cert(req: CertApplyRequest):
     if not token:
         raise HTTPException(400, "请先配置 Cloudflare API Token")
 
-    # 检查是否已存在有效证书
+    # 检查是否已存在有效证书且还未到重新签发期（大于10天）
     existing = db.get_cert(domain)
     if existing and existing["status"] == "valid":
-        raise HTTPException(409, f"*.{domain} 已有有效证书，如需重新申请请先删除")
+        expires_at_str = existing.get("expires_at")
+        if expires_at_str:
+            try:
+                expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
+                days_left = (expires_at - datetime.now(timezone.utc)).days
+                if days_left > 10:
+                    raise HTTPException(409, f"*.{domain} 已有有效证书（还剩 {days_left} 天过期），无需重新申请")
+            except ValueError:
+                pass
+        else:
+            raise HTTPException(409, f"*.{domain} 已有有效证书，如需重新申请请先删除")
 
     # 创建或更新记录
     if not existing:
@@ -139,6 +155,9 @@ async def apply_cert(req: CertApplyRequest):
         db.update_cert(domain, status="pending", created_at=datetime.now(timezone.utc).isoformat())
 
     is_applying = True
+    apply_state["domain"] = domain
+    apply_state["step"] = "init"
+    apply_state["message"] = "准备中..."
     asyncio.create_task(_run_apply(domain, token, req.staging))
     return {"success": True, "message": f"已开始申请 *.{domain} 证书"}
 
@@ -184,6 +203,7 @@ async def _run_apply(domain: str, token: str, staging: bool):
         db.update_cert(domain, status="failed")
     finally:
         is_applying = False
+        apply_state["domain"] = ""
         try:
             await cf.close()
         except Exception:
@@ -200,6 +220,8 @@ async def check_domain(domain: str):
         "domain": domain,
         "has_token": has_token,
         "cert": cert,
+        "is_applying": is_applying and apply_state["domain"] == domain,
+        "apply_state": apply_state if (is_applying and apply_state["domain"] == domain) else None
     }
 
 
@@ -216,8 +238,20 @@ async def download_cert(domain: str):
 
     buf = BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr(f"{domain}/fullchain.pem", files["fullchain_pem"])
-        zf.writestr(f"{domain}/privkey.pem", files["privkey_pem"])
+        fullchain = files["fullchain_pem"]
+        privkey = files["privkey_pem"]
+        
+        # Split fullchain into leaf and CA
+        parts = [p.strip() + "\n-----END CERTIFICATE-----\n" for p in fullchain.split("-----END CERTIFICATE-----") if p.strip()]
+        
+        zf.writestr(f"{domain}/fullchain.cer", fullchain)
+        zf.writestr(f"{domain}/{domain}.key", privkey)
+        
+        if parts:
+            zf.writestr(f"{domain}/{domain}.cer", parts[0])
+            if len(parts) > 1:
+                zf.writestr(f"{domain}/ca.cer", "".join(parts[1:]))
+                
     buf.seek(0)
 
     return StreamingResponse(

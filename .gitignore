@@ -22,3 +22,4 @@ static/assets/
 
 # Server
 .server.pid
+*.db
