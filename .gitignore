@@ -1,0 +1,24 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+data/
+
+# Node
+node_modules/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Build output served by FastAPI
+static/assets/
+
+# OS
+.DS_Store
+*.swp
+*.swo
+
+# Server
+.server.pid
