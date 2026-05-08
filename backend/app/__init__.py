@@ -1,1 +1,0 @@
-"""AutoCert backend package."""

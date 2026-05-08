@@ -1,11 +1,3 @@
-# Python
-backend/venv/
-backend/__pycache__/
-__pycache__/
-*.pyc
-*.pyo
-backend/data/
-
 # Node
 node_modules/
 
@@ -13,17 +5,17 @@ node_modules/
 frontend/node_modules/
 frontend/dist/
 
-# Build output served by FastAPI
-static/assets/
-
 # OS
 .DS_Store
 *.swp
 *.swo
 .idea/
 
-# Server
+# Runtime
 *.db
-/backend/.server.pid
-/backend/config.yaml
-/backend/logs/
+backend/
+static/
+worker/.dev.vars
+worker/.wrangler/
+worker/node_modules/
+worker/wrangler.toml

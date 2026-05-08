@@ -1,0 +1,22 @@
+name = "auto-cert-api"
+main = "src/index.ts"
+compatibility_date = "2026-05-08"
+
+[vars]
+R2_KEY_PREFIX = "auto-cert"
+R2_PUBLIC_BASE_URL = "__R2_PUBLIC_BASE_URL__"
+CORS_ORIGINS = "*"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "auto-cert"
+database_id = "__D1_DATABASE_ID__"
+
+[[r2_buckets]]
+binding = "CERT_BUCKET"
+bucket_name = "__R2_BUCKET_NAME__"
+
+[[workflows]]
+name = "auto-cert-certificate-workflow"
+binding = "CERTIFICATE_WORKFLOW"
+class_name = "CertificateWorkflow"

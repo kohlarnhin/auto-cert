@@ -320,6 +320,7 @@ function DomainPage({ data, onLogout }) {
   const [copiedUrlType, setCopiedUrlType] = useState('')
   const sseRef = useRef()
   const completeTimerRef = useRef(null)
+  const propagationTimerRef = useRef(null)
   const completedRef = useRef(false)
 
   const now = new Date()
@@ -341,6 +342,24 @@ function DomainPage({ data, onLogout }) {
   }, [domain, password])
 
   useEffect(() => {
+    const clearPropagationTimer = () => {
+      if (propagationTimerRef.current) {
+        window.clearInterval(propagationTimerRef.current)
+        propagationTimerRef.current = null
+      }
+    }
+
+    const startPropagationCountdown = () => {
+      clearPropagationTimer()
+      let c = 30
+      setCountdown(c)
+      propagationTimerRef.current = window.setInterval(() => {
+        c--
+        setCountdown(Math.max(0, c))
+        if (c <= 0) clearPropagationTimer()
+      }, 1000)
+    }
+
     sseRef.current = createSSE(ev => {
       if (!ev.step) return
       if (ev.level === 'debug' && ev.step === 'propagation') {
@@ -352,8 +371,15 @@ function DomainPage({ data, onLogout }) {
         return
       }
       if (ev.level === 'debug') return
+      if (ev.step !== 'propagation') clearPropagationTimer()
       setCurStep(ev.step)
       setCurMsg(ev.message)
+      if (ev.step === 'propagation' && ev.level === 'success') {
+        clearPropagationTimer()
+        setCountdown(0)
+      } else if (ev.step === 'propagation') {
+        startPropagationCountdown()
+      }
       if (ev.level === 'success' && ev.step !== 'complete' && ev.step !== 'cleanup') {
         setDoneSteps(p => p.includes(ev.step) ? p : [...p, ev.step])
       }
@@ -378,15 +404,16 @@ function DomainPage({ data, onLogout }) {
         }, 1000)
       }
       if (ev.step === 'error') setPhase('failed')
-    })
+    }, domain)
     return () => {
       sseRef.current?.close()
       if (completeTimerRef.current) {
         window.clearInterval(completeTimerRef.current)
         completeTimerRef.current = null
       }
+      clearPropagationTimer()
     }
-  }, [refreshCert])
+  }, [refreshCert, domain])
 
   const startApply = async () => {
     if (completeTimerRef.current) {
@@ -423,7 +450,7 @@ function DomainPage({ data, onLogout }) {
     try {
       const url = type === 'fullchain' ? cert?.fullchain_url : cert?.privkey_url
       if (!url) {
-        alert('临时地址不可用，请刷新页面')
+        alert('证书地址不可用，请刷新页面')
         return
       }
       await writeClipboard(url)

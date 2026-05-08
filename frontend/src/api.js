@@ -14,14 +14,15 @@ export async function api(method, path, body, password) {
   return d
 }
 
-export function createSSE(onMsg) {
+export function createSSE(onMsg, domain) {
   let source = null
   let reconnectTimer = null
   let closed = false
 
   const connect = () => {
     if (closed) return
-    source = new EventSource(apiUrl('/api/logs'))
+    const query = domain ? `?domain=${encodeURIComponent(domain)}` : ''
+    source = new EventSource(apiUrl(`/api/logs${query}`))
     source.onmessage = e => {
       try { onMsg(JSON.parse(e.data)) } catch { /* Ignore malformed keepalive payloads. */ }
     }
