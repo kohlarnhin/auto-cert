@@ -47,7 +47,8 @@ jobs:
         run: npm run typecheck
 
       - name: Validate Worker secrets
-        run: : "${ENCRYPTION_KEY:?Missing ENCRYPTION_KEY}"
+        run: |
+          : "${ENCRYPTION_KEY:?Missing ENCRYPTION_KEY}"
         env:
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
 
