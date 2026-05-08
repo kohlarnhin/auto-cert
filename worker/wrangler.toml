@@ -4,17 +4,16 @@ compatibility_date = "2026-05-08"
 
 [vars]
 R2_KEY_PREFIX = "auto-cert"
-R2_PUBLIC_BASE_URL = "__R2_PUBLIC_BASE_URL__"
 CORS_ORIGINS = "*"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "auto-cert"
-database_id = "__D1_DATABASE_ID__"
+database_id = "627a01cf-9744-4ff0-902b-14df7f8a282b"
 
 [[r2_buckets]]
 binding = "CERT_BUCKET"
-bucket_name = "__R2_BUCKET_NAME__"
+bucket_name = "auto-cert"
 
 [[workflows]]
 name = "auto-cert-certificate-workflow"

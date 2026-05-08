@@ -6,8 +6,6 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "prepare:cloudflare": "node scripts/prepare-cloudflare-deploy.mjs",
-    "deploy:cloudflare": "npm run prepare:cloudflare && wrangler deploy --secrets-file .secrets.json",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
