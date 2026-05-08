@@ -140,20 +140,22 @@ R2_PUBLIC_BASE_URL=https://certs.example.com
 environment: cloudflare
 ```
 
-workflow 会用 `worker/wrangler.toml.example` 在 CI 里临时生成真实 `wrangler.toml`，不会把 D1 database ID 提交到 Git。GitHub Actions 不初始化 D1、不读写 R2。
+workflow 会用 `worker/wrangler.toml.example` 在 CI 里临时生成真实 `wrangler.toml`，不会把 D1 database ID 提交到 Git。GitHub Actions 不初始化 D1、不读写 R2 对象。
 
 `ENCRYPTION_KEY` 会通过 `wrangler deploy --secrets-file` 和 Worker 代码一起发布。第一次发布也只执行一次 `wrangler deploy`，不需要先创建 Worker 再重新部署。
 
-部署用的 Cloudflare Token 只需要能发布 Worker。建议最小权限：
+部署用的 Cloudflare Token 需要能发布 Worker，并且需要读取绑定资源用于 `wrangler deploy` 校验。建议最小权限：
 
 ```text
 Workers Scripts: Edit
+Workers R2 Storage: Read
+D1: Read
 Account Settings: Read
 ```
 
-`Account Settings: Read` 通常用于 Wrangler 识别账号；如果你已经通过 `CLOUDFLARE_ACCOUNT_ID` 明确指定账号，也可以先尝试只给 `Workers Scripts: Edit`。
+`Workers R2 Storage: Read` 和 `D1: Read` 不是给 CI 读写业务数据用的，而是 Wrangler 部署时确认 `wrangler.toml` 里的 R2/D1 binding 存在。日志里如果出现 `/r2/buckets/... Authentication error`，就是缺少 R2 读取权限。
 
-D1 表结构由 Worker 首次请求时自动创建，CI 不需要 D1 权限。
+D1 表结构由 Worker 首次请求时自动创建，CI 不需要 D1 写权限。
 
 ## 前端部署
 
