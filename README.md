@@ -126,20 +126,24 @@ npm run dev
 
 ## Docker 部署后端
 
-服务器只需要后端目录即可。把以下文件放在 `backend/` 中：
+后端镜像发布到 GitHub Container Registry：
+
+```text
+ghcr.io/kohlarnhin/auto-cert-backend:latest
+```
+
+服务器不需要前端代码，也不需要后端源码构建镜像。只需要准备：
 
 - `config.yaml`
 - `docker-compose.yaml`
-- `Dockerfile`
-- `requirements.txt`
-- `app/`
+- `logs/`
 
 启动：
 
 ```bash
-cd backend
 mkdir -p logs
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
 `docker-compose.yaml` 会挂载：
@@ -148,6 +152,26 @@ docker compose up -d --build
 ./config.yaml -> /app/config.yaml
 ./logs        -> /app/logs
 ```
+
+## 后端镜像发布
+
+GitHub Actions workflow 位于 `.github/workflows/backend-docker.yml`。
+
+推送后端发布 tag 会自动构建并推送镜像：
+
+```bash
+git tag backend-v1.0.0
+git push origin backend-v1.0.0
+```
+
+发布后可使用：
+
+```text
+ghcr.io/kohlarnhin/auto-cert-backend:backend-v1.0.0
+ghcr.io/kohlarnhin/auto-cert-backend:latest
+```
+
+也可以在 GitHub Actions 页面手动运行 `Publish Backend Docker Image`。
 
 ## 前端部署
 

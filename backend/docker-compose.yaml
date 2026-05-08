@@ -1,9 +1,6 @@
 services:
   backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: auto-cert-backend:latest
+    image: ghcr.io/kohlarnhin/auto-cert-backend:latest
     container_name: auto-cert-backend
     restart: unless-stopped
     ports:
