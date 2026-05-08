@@ -1,16 +1,21 @@
-# React + Vite
+# AutoCert Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+AutoCert 前端基于 React 和 Vite，负责域名输入、密码登录、Cloudflare Token 录入、证书签发进度展示、证书包下载和 R2 证书地址复制。
 
-Currently, two official plugins are available:
+## 本地开发
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev
+```
 
-## React Compiler
+开发服务器默认运行在 `http://localhost:3000`，`/api` 会代理到 `http://localhost:8000`。
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 构建
 
-## Expanding the ESLint configuration
+```bash
+npm run lint
+npm run build
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+生产部署到 Vercel 时，需要将 `/api/*` 转发到后端服务，或者让前端和后端处于同一域名下。

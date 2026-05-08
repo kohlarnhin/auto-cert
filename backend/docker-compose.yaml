@@ -1,0 +1,13 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: auto-cert-backend:latest
+    container_name: auto-cert-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./logs:/app/logs

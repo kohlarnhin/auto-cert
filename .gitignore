@@ -1,9 +1,10 @@
 # Python
-venv/
+backend/venv/
+backend/__pycache__/
 __pycache__/
 *.pyc
 *.pyo
-data/
+backend/data/
 
 # Node
 node_modules/
@@ -19,7 +20,10 @@ static/assets/
 .DS_Store
 *.swp
 *.swo
+.idea/
 
 # Server
-.server.pid
 *.db
+/backend/.server.pid
+/backend/config.yaml
+/backend/logs/

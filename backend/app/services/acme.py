@@ -4,9 +4,8 @@ import asyncio
 import base64
 import hashlib
 import json
-import os
 from datetime import datetime, timezone
-from typing import Callable, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 import httpx
 from cryptography import x509
@@ -15,14 +14,11 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
 from cryptography.x509.oid import NameOID
 
-from cloudflare_service import CloudflareService
+from app.db import database as db
+from app.services.cloudflare import CloudflareService
 
 LETS_ENCRYPT_DIR = "https://acme-v02.api.letsencrypt.org/directory"
 LETS_ENCRYPT_STAGING_DIR = "https://acme-staging-v02.api.letsencrypt.org/directory"
-
-DATA_DIR = "data"
-ACCOUNT_KEY_PATH = os.path.join(DATA_DIR, "account.key")
-CERTS_DIR = os.path.join(DATA_DIR, "certs")
 
 
 def _b64url(data) -> str:
@@ -45,6 +41,7 @@ class AcmeService:
         self.directory_url = LETS_ENCRYPT_STAGING_DIR if staging else LETS_ENCRYPT_DIR
         self.directory: Optional[dict] = None
         self.account_key = None
+        self.account_key_pem: bytes | None = None
         self.account_url: Optional[str] = None
         self.nonce: Optional[str] = None
         self.client = httpx.AsyncClient(timeout=60.0)
@@ -94,7 +91,7 @@ class AcmeService:
 
     # ── ACME 流程 ──────────────────────────────────────────────
 
-    async def init(self):
+    async def init(self, domain: str):
         """初始化：获取目录、Nonce、加载/生成账户密钥"""
         resp = await self.client.get(self.directory_url)
         self.directory = resp.json()
@@ -102,26 +99,29 @@ class AcmeService:
         resp = await self.client.head(self.directory["newNonce"])
         self.nonce = resp.headers["Replay-Nonce"]
 
-        os.makedirs(DATA_DIR, exist_ok=True)
-        if os.path.exists(ACCOUNT_KEY_PATH):
-            with open(ACCOUNT_KEY_PATH, "rb") as f:
-                self.account_key = serialization.load_pem_private_key(f.read(), password=None)
+        account = await db.get_acme_account(domain)
+        if account and account.get("account_key_pem"):
+            self.account_key_pem = account["account_key_pem"].encode("utf-8")
+            self.account_key = serialization.load_pem_private_key(self.account_key_pem, password=None)
+            self.account_url = account.get("account_url")
         else:
             self.account_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-            with open(ACCOUNT_KEY_PATH, "wb") as f:
-                f.write(
-                    self.account_key.private_bytes(
-                        serialization.Encoding.PEM,
-                        serialization.PrivateFormat.PKCS8,
-                        serialization.NoEncryption(),
-                    )
-                )
+            self.account_key_pem = self.account_key.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.PKCS8,
+                serialization.NoEncryption(),
+            )
 
-    async def register_account(self):
+    async def ensure_account(self, domain: str):
+        if self.account_url:
+            return
+        if not self.account_key_pem:
+            raise RuntimeError("ACME account key was not initialized")
         resp = await self._post(
             self.directory["newAccount"], {"termsOfServiceAgreed": True}
         )
         self.account_url = resp.headers.get("Location")
+        await db.save_acme_account(domain, self.account_key_pem, self.account_url)
 
     async def create_order(self, domains: List[str]) -> dict:
         ids = [{"type": "dns", "value": d} for d in domains]
@@ -186,7 +186,12 @@ class AcmeService:
 
     # ── 完整申请流程 ───────────────────────────────────────────
 
-    async def apply_certificate(self, domain: str, cf: CloudflareService, staging: bool = False):
+    async def apply_certificate(
+        self,
+        domain: str,
+        cf: CloudflareService,
+        staging: bool = False,
+    ) -> dict[str, Any]:
         """完整的通配符证书申请流程"""
         domains = [domain, f"*.{domain}"]
         dns_records: list[tuple[str, str]] = []
@@ -196,12 +201,12 @@ class AcmeService:
 
             # 1. 初始化
             await self._log("连接 Let's Encrypt...", step="init")
-            await self.init()
+            await self.init(domain)
             await self._log("连接成功", "success", step="init")
 
             # 2. 注册账户
-            await self._log("注册 ACME 账户...", step="account")
-            await self.register_account()
+            await self._log("准备 ACME 账户...", step="account")
+            await self.ensure_account(domain)
             await self._log("账户就绪", "success", step="account")
 
             # 3. 创建订单
@@ -268,29 +273,25 @@ class AcmeService:
             cert_pem = await self.download_cert(result["certificate"])
             await self._log("证书已下载", "success", step="finalize")
 
-            # 11. 保存文件
-            cert_dir = os.path.join(CERTS_DIR, domain)
-            os.makedirs(cert_dir, exist_ok=True)
-
-            with open(os.path.join(cert_dir, "fullchain.pem"), "w") as f:
-                f.write(cert_pem)
-            with open(os.path.join(cert_dir, "privkey.pem"), "wb") as f:
-                f.write(key_pem)
-
-            # 解析证书到期时间
+            # 11. 解析证书元数据，调用方负责持久化到 R2/D1
             cert_obj = x509.load_pem_x509_certificate(cert_pem.encode())
             expires = cert_obj.not_valid_after_utc
+            issued_at = datetime.now(timezone.utc).isoformat()
             meta = {
                 "domain": domain,
                 "domains": domains,
-                "issued_at": datetime.now(timezone.utc).isoformat(),
+                "issued_at": issued_at,
                 "expires_at": expires.isoformat(),
             }
-            with open(os.path.join(cert_dir, "metadata.json"), "w") as f:
-                json.dump(meta, f, indent=2, ensure_ascii=False)
 
             await self._log(f"证书申请成功！有效期至 {expires.strftime('%Y-%m-%d')}", "success", step="complete")
-            return True
+            return {
+                "fullchain_pem": cert_pem,
+                "privkey_pem": key_pem.decode("utf-8"),
+                "metadata": meta,
+                "issued_at": issued_at,
+                "expires_at": expires.isoformat(),
+            }
 
         except Exception as e:
             await self._log(f"申请失败: {e}", "error", step="error")
@@ -305,3 +306,4 @@ class AcmeService:
                     except Exception as e:
                         await self._log(f"清理失败: {e}", "warn", step="cleanup")
                 await self._log("DNS 记录已清理", "success", step="cleanup")
+            await self.client.aclose()

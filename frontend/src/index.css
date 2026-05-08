@@ -122,7 +122,7 @@ body {
 .meta-val { font-size: clamp(20px, 3vw, 32px); font-weight: 300; font-family: var(--font-mono); color: var(--fg); }
 
 /* Buttons */
-.btn-row { display: flex; gap: 24px; align-items: center; justify-content: center; }
+.btn-row { display: flex; gap: 24px; align-items: center; justify-content: center; flex-wrap: wrap; }
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 12px;
   height: 56px; padding: 0 40px; border-radius: 28px; font-size: 15px; font-weight: 600;
@@ -165,3 +165,13 @@ body {
 .min-toggle input:checked + .tgl-track { border-color: var(--fg); }
 .min-toggle input:checked + .tgl-track .tgl-thumb { transform: translateX(20px); background: var(--fg); }
 .tgl-label { font-size: 14px; color: var(--fg-dim); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* Setup Form */
+.setup-form { max-width: 500px; }
+.setup-field { margin-bottom: 24px; width: 100%; }
+.setup-label { font-size: 11px; color: var(--fg-dim); text-transform: uppercase; letter-spacing: 0.1em; font-family: var(--font-mono); margin-bottom: 8px; display: block; }
+.prompt-input-area.compact { padding: 12px 0; }
+.prompt-input-area { position: relative; }
+.pwd-toggle { background: none; border: none; color: var(--fg-dim); cursor: pointer; padding: 4px; display: flex; align-items: center; flex-shrink: 0; margin-left: -4px; }
+.pwd-toggle:hover { color: var(--fg); }
+.setup-confirm-field { margin-top: 16px; }
