@@ -48,7 +48,7 @@ logging:
 
 server:
   cors_origins:
-    - https://your-vercel-app.vercel.app
+    - "*"
 
 cloudflare:
   account_id: replace-me
@@ -83,13 +83,12 @@ cloudflare:
 
 不配置时，后端会按 `r2_endpoint_url/{bucket}/{object_key}` 拼接固定地址。
 
-如果前端部署在 Vercel，后端 `server.cors_origins` 需要填写前端域名：
+后端默认允许所有来源跨域；不配置 `server.cors_origins` 时也等价于：
 
 ```yaml
 server:
   cors_origins:
-    - https://your-vercel-app.vercel.app
-    - https://www.example.com
+    - "*"
 ```
 
 ## 数据库
@@ -186,23 +185,26 @@ ghcr.io/kohlarnhin/auto-cert-backend:latest
 
 ## 前端部署
 
-前端可以独立部署到 Vercel。前端请求后端地址通过 Vite 环境变量配置：
+前端可以独立部署到 Vercel。Vercel 配置建议：
 
 ```text
-VITE_API_BASE_URL=https://api.example.com
-```
-
-如果本地开发不配置 `VITE_API_BASE_URL`，前端会继续使用相对路径 `/api`，并通过 Vite dev server 代理到 `http://localhost:8000`。
-
-Vercel 项目建议配置：
-
-```text
+Framework Preset: Vite
 Root Directory: frontend
 Build Command: npm run build
 Output Directory: dist
-Environment Variable:
-  VITE_API_BASE_URL=https://api.example.com
 ```
+
+前端不会让浏览器直接请求后端域名。浏览器只请求 Vercel 同源的 `/api/*`，再由 Vercel Serverless Function 代理到真实后端。
+
+Vercel 项目需要配置服务端环境变量：
+
+```text
+BACKEND_URL=https://api.example.com
+```
+
+`BACKEND_URL` 的 value 是后端公网地址，不要以 `/` 结尾。这个变量不会暴露给浏览器。
+
+本地开发不需要配置 `BACKEND_URL`，前端会继续通过 Vite dev server 把 `/api` 代理到 `http://localhost:8000`。
 
 常用命令：
 
@@ -231,13 +233,9 @@ VERCEL_ORG_ID=vercel-org-id
 VERCEL_PROJECT_ID=vercel-project-id
 ```
 
-需要在 GitHub 仓库配置以下 Variable：
+如果使用 GitHub Actions 发布到 Vercel，Vercel 项目里仍然需要配置 `BACKEND_URL`。`VERCEL_TOKEN`、`VERCEL_ORG_ID`、`VERCEL_PROJECT_ID` 由你在 GitHub Secrets 中自行配置。
 
-```text
-VITE_API_BASE_URL=https://api.example.com
-```
-
-其中 `VITE_API_BASE_URL` 的 value 就是你的后端公网地址，不要以 `/` 结尾。
+如果希望严格做到“只有 `frontend-v*` tag 才发布”，需要在 Vercel 项目中关闭或忽略默认 Git 自动部署，否则 Vercel 自带的 Git 集成可能仍会在 `main` 分支 push 时触发部署。
 
 ## 安全说明
 

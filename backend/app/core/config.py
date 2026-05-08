@@ -128,7 +128,7 @@ def get_settings() -> AppSettings:
         config_path=config_path,
         logs_dir=_resolve_path(config_path.parent, logging_cfg.get("dir"), "./logs"),
         log_level=_clean(logging_cfg.get("level"), "INFO").upper(),
-        cors_origins=_clean_list(server.get("cors_origins")),
+        cors_origins=_clean_list(server.get("cors_origins", ["*"])),
         cloudflare=CloudflareSettings(
             account_id=account_id,
             api_token=d1_token,

@@ -4,7 +4,7 @@ logging:
 
 server:
   cors_origins:
-    - https://your-vercel-app.vercel.app
+    - "*"
 
 cloudflare:
   account_id: replace-me
