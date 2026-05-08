@@ -4,8 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "dev": "node scripts/write-wrangler-config.mjs && wrangler dev --config wrangler.toml",
+    "deploy": "node scripts/write-wrangler-config.mjs && wrangler deploy --config wrangler.toml --secrets-file .wrangler/generated-secrets.json",
+    "upload": "node scripts/write-wrangler-config.mjs && wrangler versions upload --config wrangler.toml --secrets-file .wrangler/generated-secrets.json",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
