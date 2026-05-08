@@ -116,15 +116,28 @@ git push origin backend-v1.0.0
 ```text
 CLOUDFLARE_API_TOKEN=cloudflare-deploy-token
 CLOUDFLARE_ACCOUNT_ID=cloudflare-account-id
-CLOUDFLARE_D1_DATABASE_ID=d1-database-id
 ENCRYPTION_KEY=32-byte-base64-key
 ```
 
-可选 Secrets：
+需要在 GitHub 仓库配置 Variables：
+
+```text
+CLOUDFLARE_D1_DATABASE_ID=d1-database-id
+```
+
+可选 Variables：
 
 ```text
 CLOUDFLARE_R2_BUCKET_NAME=auto-cert
 R2_PUBLIC_BASE_URL=https://certs.example.com
+```
+
+`CLOUDFLARE_D1_DATABASE_ID`、`CLOUDFLARE_R2_BUCKET_NAME`、`R2_PUBLIC_BASE_URL` 也可以放 Secrets；workflow 会优先读 Secrets，读不到再读 Variables。
+
+如果这些值配置在 GitHub Environment 里，Environment 名称需要是 `cloudflare`。workflow 已经绑定：
+
+```yaml
+environment: cloudflare
 ```
 
 workflow 会用 `worker/wrangler.toml.example` 在 CI 里临时生成真实 `wrangler.toml`，不会把 D1 database ID 提交到 Git。GitHub Actions 不初始化 D1、不读写 R2。
