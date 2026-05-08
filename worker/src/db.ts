@@ -2,7 +2,8 @@ import type { AcmeAccountRow, ApplyEvent, CertRow, CertStatus, Env } from './typ
 import { decryptText, encryptText } from './crypto'
 import { httpError, nowIso, sha256Hex } from './utils'
 
-const SCHEMA = `
+const SCHEMA_STATEMENTS = [
+  `
 CREATE TABLE IF NOT EXISTS certificates (
   domain          TEXT PRIMARY KEY,
   wildcard_domain TEXT NOT NULL,
@@ -15,16 +16,18 @@ CREATE TABLE IF NOT EXISTS certificates (
   issued_at       TEXT,
   expires_at      TEXT,
   created_at      TEXT NOT NULL
-);
-
+)
+`,
+  `
 CREATE TABLE IF NOT EXISTS acme_accounts (
   domain          TEXT PRIMARY KEY,
   account_key_pem TEXT NOT NULL,
   account_url     TEXT,
   created_at      TEXT NOT NULL,
   updated_at      TEXT NOT NULL
-);
-
+)
+`,
+  `
 CREATE TABLE IF NOT EXISTS apply_events (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   domain     TEXT NOT NULL,
@@ -32,22 +35,28 @@ CREATE TABLE IF NOT EXISTS apply_events (
   level      TEXT NOT NULL,
   message    TEXT NOT NULL,
   created_at TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_certificates_status
-  ON certificates(status);
-
-CREATE INDEX IF NOT EXISTS idx_apply_events_domain_id
-  ON apply_events(domain, id);
-`
+)
+`,
+  'CREATE INDEX IF NOT EXISTS idx_certificates_status ON certificates(status)',
+  'CREATE INDEX IF NOT EXISTS idx_apply_events_domain_id ON apply_events(domain, id)',
+]
 
 let initPromise: Promise<void> | null = null
 
 export function initDb(env: Env): Promise<void> {
   if (!initPromise) {
-    initPromise = env.DB.exec(SCHEMA).then(() => undefined)
+    initPromise = createSchema(env).catch((error) => {
+      initPromise = null
+      throw error
+    })
   }
   return initPromise
+}
+
+async function createSchema(env: Env): Promise<void> {
+  for (const statement of SCHEMA_STATEMENTS) {
+    await env.DB.prepare(statement).run()
+  }
 }
 
 export async function hashPassword(password: string): Promise<string> {
