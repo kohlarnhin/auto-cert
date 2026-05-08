@@ -89,7 +89,7 @@ npx wrangler secret put ENCRYPTION_KEY
 
 `ENCRYPTION_KEY` 必须是 32 字节的 base64/base64url 字符串。这个密钥用于加密每个域名保存的 Cloudflare Token 和 ACME account key。
 
-Worker 运行时会自动执行 `CREATE TABLE IF NOT EXISTS` 初始化表结构，不会删除已有数据。你只需要提前创建 D1 数据库资源，并把 `database_id` 配到本地或 CI 生成的 `wrangler.toml`。
+Worker 运行时会自动执行 `CREATE TABLE IF NOT EXISTS` 初始化表结构，不会删除已有数据。你只需要提前创建 D1 数据库资源，并在 Cloudflare Builds 的环境变量里配置 `CLOUDFLARE_D1_DATABASE_ID`。
 
 ## 后端部署
 
@@ -104,58 +104,58 @@ npm run typecheck
 npx wrangler deploy
 ```
 
-GitHub Actions workflow 位于 `.github/workflows/backend-worker.yml`。只有推送 `backend-v*` tag 才会部署后端：
+后端发布由 GitHub Actions 和 Cloudflare Builds 配合完成：
+
+- GitHub Actions 只在 `backend-v*` tag 推送时运行
+- Actions 把 tag 对应 commit 强制推进到 `backend-release` 分支
+- Cloudflare 监听 `backend-release` 分支并部署 Worker
+
+发布命令：
 
 ```bash
 git tag backend-v1.0.0
 git push origin backend-v1.0.0
 ```
 
-需要在 GitHub 仓库配置 Secrets：
+GitHub Actions 不需要 Cloudflare API Token。workflow 只需要仓库写权限来更新 `backend-release`，已经在 `.github/workflows/backend-worker.yml` 中配置：
 
-```text
-CLOUDFLARE_API_TOKEN=cloudflare-deploy-token
-CLOUDFLARE_ACCOUNT_ID=cloudflare-account-id
-ENCRYPTION_KEY=32-byte-base64-key
+```yaml
+permissions:
+  contents: write
 ```
 
-需要在 GitHub 仓库配置 Variables：
+Cloudflare Workers Builds 配置：
+
+```text
+Git repository: kohlarnhin/auto-cert
+Production branch: backend-release
+Root directory: worker
+Build command: npm install && npm run typecheck
+Deploy command: npm run deploy:cloudflare
+```
+
+Cloudflare Builds 需要配置环境变量：
 
 ```text
 CLOUDFLARE_D1_DATABASE_ID=d1-database-id
+ENCRYPTION_KEY=32-byte-base64-key
 ```
 
-可选 Variables：
+可选环境变量：
 
 ```text
 CLOUDFLARE_R2_BUCKET_NAME=auto-cert
 R2_PUBLIC_BASE_URL=https://certs.example.com
 ```
 
-`CLOUDFLARE_D1_DATABASE_ID`、`CLOUDFLARE_R2_BUCKET_NAME`、`R2_PUBLIC_BASE_URL` 也可以放 Secrets；workflow 会优先读 Secrets，读不到再读 Variables。
+Cloudflare 会在自己的构建环境里运行 `npm run deploy:cloudflare`，该脚本会从 `worker/wrangler.toml.example` 生成真实 `wrangler.toml`，并通过 `--secrets-file` 发布 `ENCRYPTION_KEY`。真实 D1 database ID 不提交到 GitHub。
 
-如果这些值配置在 GitHub Environment 里，Environment 名称需要是 `cloudflare`。workflow 已经绑定：
+回退时可以把 `backend-release` 指回旧 tag：
 
-```yaml
-environment: cloudflare
+```bash
+git fetch origin --tags
+git push origin backend-v0.0.6:refs/heads/backend-release --force
 ```
-
-workflow 会用 `worker/wrangler.toml.example` 在 CI 里临时生成真实 `wrangler.toml`，不会把 D1 database ID 提交到 Git。GitHub Actions 不初始化 D1、不读写 R2 对象。
-
-`ENCRYPTION_KEY` 会通过 `wrangler deploy --secrets-file` 和 Worker 代码一起发布。第一次发布也只执行一次 `wrangler deploy`，不需要先创建 Worker 再重新部署。
-
-部署用的 Cloudflare Token 需要能发布 Worker，并且需要读取绑定资源用于 `wrangler deploy` 校验。建议最小权限：
-
-```text
-Workers Scripts: Edit
-Workers R2 Storage: Read
-D1: Read
-Account Settings: Read
-```
-
-`Workers R2 Storage: Read` 和 `D1: Read` 不是给 CI 读写业务数据用的，而是 Wrangler 部署时确认 `wrangler.toml` 里的 R2/D1 binding 存在。日志里如果出现 `/r2/buckets/... Authentication error`，就是缺少 R2 读取权限。
-
-D1 表结构由 Worker 首次请求时自动创建，CI 不需要 D1 写权限。
 
 ## 前端部署
 

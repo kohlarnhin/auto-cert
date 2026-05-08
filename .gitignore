@@ -16,6 +16,7 @@ frontend/dist/
 backend/
 static/
 worker/.dev.vars
+worker/.secrets.json
 worker/.wrangler/
 worker/node_modules/
 worker/wrangler.toml
