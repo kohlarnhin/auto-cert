@@ -8,3 +8,8 @@ services:
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ./logs:/app/logs
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
