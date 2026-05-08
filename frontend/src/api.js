@@ -1,8 +1,15 @@
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')
+
+export function apiUrl(path) {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  return `${API_BASE_URL}${normalizedPath}`
+}
+
 export async function api(method, path, body, password) {
   const opts = { method, headers: { 'Content-Type': 'application/json' } }
   if (password) opts.headers['X-Domain-Password'] = password
   if (body) opts.body = JSON.stringify(body)
-  const r = await fetch(path, opts)
+  const r = await fetch(apiUrl(path), opts)
   const text = await r.text()
   let d
   try { d = JSON.parse(text) } catch { throw new Error('服务器返回异常') }
@@ -17,7 +24,7 @@ export function createSSE(onMsg) {
 
   const connect = () => {
     if (closed) return
-    source = new EventSource('/api/logs')
+    source = new EventSource(apiUrl('/api/logs'))
     source.onmessage = e => {
       try { onMsg(JSON.parse(e.data)) } catch { /* Ignore malformed keepalive payloads. */ }
     }

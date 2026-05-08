@@ -2,6 +2,10 @@ logging:
   dir: ./logs
   level: INFO
 
+server:
+  cors_origins:
+    - https://your-vercel-app.vercel.app
+
 cloudflare:
   account_id: replace-me
   api_token: replace-me

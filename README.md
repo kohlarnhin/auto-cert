@@ -46,6 +46,10 @@ logging:
   dir: ./logs
   level: INFO
 
+server:
+  cors_origins:
+    - https://your-vercel-app.vercel.app
+
 cloudflare:
   account_id: replace-me
   api_token: replace-me
@@ -78,6 +82,15 @@ cloudflare:
 ```
 
 不配置时，后端会按 `r2_endpoint_url/{bucket}/{object_key}` 拼接固定地址。
+
+如果前端部署在 Vercel，后端 `server.cors_origins` 需要填写前端域名：
+
+```yaml
+server:
+  cors_origins:
+    - https://your-vercel-app.vercel.app
+    - https://www.example.com
+```
 
 ## 数据库
 
@@ -157,7 +170,7 @@ docker compose up -d
 
 GitHub Actions workflow 位于 `.github/workflows/backend-docker.yml`。
 
-推送后端发布 tag 会自动构建并推送镜像：
+只有推送 `backend-v*` tag 才会自动构建并推送镜像：
 
 ```bash
 git tag backend-v1.0.0
@@ -171,11 +184,25 @@ ghcr.io/kohlarnhin/auto-cert-backend:backend-v1.0.0
 ghcr.io/kohlarnhin/auto-cert-backend:latest
 ```
 
-也可以在 GitHub Actions 页面手动运行 `Publish Backend Docker Image`。
-
 ## 前端部署
 
-前端可以独立部署到 Vercel。因为前端使用相对路径请求 `/api`，部署时需要让 `/api/*` 转发到后端服务地址，或者把前后端部署在同一域名下。
+前端可以独立部署到 Vercel。前端请求后端地址通过 Vite 环境变量配置：
+
+```text
+VITE_API_BASE_URL=https://api.example.com
+```
+
+如果本地开发不配置 `VITE_API_BASE_URL`，前端会继续使用相对路径 `/api`，并通过 Vite dev server 代理到 `http://localhost:8000`。
+
+Vercel 项目建议配置：
+
+```text
+Root Directory: frontend
+Build Command: npm run build
+Output Directory: dist
+Environment Variable:
+  VITE_API_BASE_URL=https://api.example.com
+```
 
 常用命令：
 
@@ -184,6 +211,33 @@ cd frontend
 npm run lint
 npm run build
 ```
+
+## 前端 Vercel 发布
+
+GitHub Actions workflow 位于 `.github/workflows/frontend-vercel.yml`。
+
+只有推送 `frontend-v*` tag 才会发布前端到 Vercel：
+
+```bash
+git tag frontend-v1.0.0
+git push origin frontend-v1.0.0
+```
+
+需要在 GitHub 仓库配置以下 Secrets：
+
+```text
+VERCEL_TOKEN=vercel-token
+VERCEL_ORG_ID=vercel-org-id
+VERCEL_PROJECT_ID=vercel-project-id
+```
+
+需要在 GitHub 仓库配置以下 Variable：
+
+```text
+VITE_API_BASE_URL=https://api.example.com
+```
+
+其中 `VITE_API_BASE_URL` 的 value 就是你的后端公网地址，不要以 `/` 结尾。
 
 ## 安全说明
 

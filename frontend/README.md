@@ -11,6 +11,16 @@ npm run dev
 
 开发服务器默认运行在 `http://localhost:3000`，`/api` 会代理到 `http://localhost:8000`。
 
+## 后端地址
+
+Vercel 生产环境需要配置：
+
+```text
+VITE_API_BASE_URL=https://api.example.com
+```
+
+本地不配置时默认使用相对路径 `/api`。
+
 ## 构建
 
 ```bash

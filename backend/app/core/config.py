@@ -33,6 +33,7 @@ class AppSettings:
     config_path: Path
     logs_dir: Path
     log_level: str
+    cors_origins: list[str]
     cloudflare: CloudflareSettings
     encryption_key: str
 
@@ -90,6 +91,16 @@ def _resolve_path(base: Path, value: Any, default: str) -> Path:
     return (base / path).resolve()
 
 
+def _clean_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [item.strip() for item in value.split(",") if item.strip()]
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    raise ConfigError("server.cors_origins must be a YAML list or comma-separated string")
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> AppSettings:
     config_path = _find_config_path()
@@ -98,6 +109,7 @@ def get_settings() -> AppSettings:
     cloudflare = data.get("cloudflare") or {}
     d1 = cloudflare.get("d1") or {}
     r2 = cloudflare.get("r2") or {}
+    server = data.get("server") or {}
     logging_cfg = data.get("logging") or {}
     security = data.get("security") or {}
 
@@ -116,6 +128,7 @@ def get_settings() -> AppSettings:
         config_path=config_path,
         logs_dir=_resolve_path(config_path.parent, logging_cfg.get("dir"), "./logs"),
         log_level=_clean(logging_cfg.get("level"), "INFO").upper(),
+        cors_origins=_clean_list(server.get("cors_origins")),
         cloudflare=CloudflareSettings(
             account_id=account_id,
             api_token=d1_token,

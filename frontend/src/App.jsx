@@ -5,7 +5,7 @@ import {
   KeyRound, Package, CheckCircle2, XCircle, LogOut, Shield, ChevronRight,
   AlertTriangle, Lock, Eye, EyeOff, Copy
 } from 'lucide-react'
-import { api, createSSE } from './api'
+import { api, apiUrl, createSSE } from './api'
 
 const STEPS = [
   { id: 'init',        label: '初始化',    icon: Link2 },
@@ -404,7 +404,7 @@ function DomainPage({ data, onLogout }) {
 
   const downloadCert = async () => {
     try {
-      const r = await fetch(`/api/cert/download/${domain}`, {
+      const r = await fetch(apiUrl(`/api/cert/download/${domain}`), {
         headers: { 'X-Domain-Password': password }
       })
       if (!r.ok) {
