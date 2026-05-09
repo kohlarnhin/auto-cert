@@ -1,0 +1,27 @@
+logging:
+  dir: ./logs
+  level: INFO
+
+server:
+  cors_origins:
+    - "*"
+
+cloudflare:
+  account_id: replace-me
+  api_token: replace-me
+  d1:
+    database_id: replace-me
+  r2:
+    bucket: auto-cert
+    access_key_id: replace-me
+    secret_access_key: replace-me
+    region: auto
+    key_prefix: auto-cert
+    # Optional. Set this to the R2 public/custom domain root used by fixed copy URLs.
+    # Example: https://pub-xxxxxxxx.r2.dev or https://certs.example.com
+    public_base_url: ""
+
+security:
+  # Generate with:
+  # python3 -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
+  encryption_key: replace-me
